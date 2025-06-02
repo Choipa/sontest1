@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vũ trụ yêu thương của bạn</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+      font-family: 'Orbitron', sans-serif;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+    .message-container {
+      position: absolute;
+      white-space: nowrap;
+      font-size: 1.5rem;
+      opacity: 0;
+      animation: floatAndFade 10s linear infinite;
+      pointer-events: none;
+      text-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+    @keyframes floatAndFade {
+      0% { transform: translate(var(--startX), var(--startY)) scale(0.5); opacity: 0; }
+      10% { opacity: 1; transform: translate(var(--midX), var(--midY)) scale(1); }
+      90% { opacity: 1; transform: translate(var(--midX), var(--midY)) scale(1); }
+      100% { transform: translate(var(--endX), var(--endY)) scale(0.5); opacity: 0; }
+    }
+    .back-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 10px 15px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      color: #4ecdc4;
+      text-decoration: none;
+      font-weight: bold;
+      transition: background 0.3s ease;
+      z-index: 100;
+    }
+    .back-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .image-slideshow {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      opacity: 0.7;
+    }
+    .image-slideshow img {
+      position: absolute;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+    }
+    .image-slideshow img.active {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <a href="creator.html" class="back-button">← Tạo mới</a>
+  <audio id="backgroundSong" loop autoplay></audio>
+  <div class="image-slideshow" id="imageSlideshow"></div>
+
+  <script type="module">
+    import { db, getDoc, doc } from './firebase-config.js';
+
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+
+    if (id) {
+      const docSnap = await getDoc(doc(db, "galaxies", id));
+      if (docSnap.exists()) {
+        const galaxyData = docSnap.data();
+        renderGalaxy(galaxyData);
+      } else {
+        document.body.innerHTML = "<h2 style='text-align:center;'>Không tìm thấy Galaxy</h2>";
+      }
+    } else {
+      document.body.innerHTML = "<h2 style='text-align:center;'>Không có ID Galaxy</h2>";
+    }
+
+    function renderGalaxy(galaxyData) {
+      const messages = galaxyData.messages || [];
+      const icons = galaxyData.icons || ["♥", "💖", "💕", "💗"];
+      const colors = galaxyData.colors || {
+        love: "#ff6b9d", birthday: "#4ecdc4", date: "#ffd93d", special: "#8a2be2", heart: "#ff6b9d"
+      };
+      const song = galaxyData.song;
+      const images = galaxyData.images || [];
+
+      const backgroundSong = document.getElementById('backgroundSong');
+      if (song) {
+        backgroundSong.src = song.includes('://') ? song : `songs/${song}`;
+        backgroundSong.play().catch(e => console.error("Error playing audio:", e));
+      } else {
+        backgroundSong.remove();
+      }
+
+      const imageSlideshow = document.getElementById('imageSlideshow');
+      let currentImageIndex = 0;
+      function showNextImage() {
+        if (images.length === 0) return;
+        const existing = imageSlideshow.querySelectorAll('img');
+        existing.forEach(img => img.classList.remove('active'));
+        const img = document.createElement('img');
+        img.src = images[currentImageIndex];
+        imageSlideshow.appendChild(img);
+        void img.offsetWidth;
+        img.classList.add('active');
+        if (existing.length > 0) {
+          setTimeout(() => existing.forEach(img => img.remove()), 1000);
+        }
+        currentImageIndex = (currentImageIndex + 1) % images.length;
+      }
+      if (images.length > 0) {
+        showNextImage();
+        setInterval(showNextImage, 5000);
+      }
+
+      function createFlyingMessage(message, icon, color) {
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message-container');
+        msgDiv.innerHTML = `${icon ? `<span style="color:${colors.heart}">${icon}</span> ` : ''}${message}`;
+        msgDiv.style.color = color;
+        document.body.appendChild(msgDiv);
+
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const startX = Math.random() * vw, startY = vh;
+        const endX = Math.random() * vw, endY = -msgDiv.offsetHeight;
+        const midX = Math.random() * vw * 0.8 + vw * 0.1;
+        const midY = Math.random() * vh * 0.6 + vh * 0.2;
+
+        msgDiv.style.setProperty('--startX', `${startX}px`);
+        msgDiv.style.setProperty('--startY', `${startY}px`);
+        msgDiv.style.setProperty('--midX', `${midX}px`);
+        msgDiv.style.setProperty('--midY', `${midY}px`);
+        msgDiv.style.setProperty('--endX', `${endX}px`);
+        msgDiv.style.setProperty('--endY', `${endY}px`);
+        msgDiv.style.left = `${startX}px`;
+        msgDiv.style.animationDuration = `${Math.random() * 5 + 10}s`;
+
+        msgDiv.addEventListener('animationend', () => msgDiv.remove());
+      }
+
+      let messageIndex = 0;
+      function displayNextMessage() {
+        if (messages.length === 0) return;
+        const msg = messages[messageIndex % messages.length];
+        const icon = icons[Math.floor(Math.random() * icons.length)];
+        let msgColor = colors.special;
+        if (msg.toLowerCase().includes('yêu') || msg.toLowerCase().includes('love')) msgColor = colors.love;
+        else if (msg.toLowerCase().includes('sinh nhật') || msg.toLowerCase().includes('birthday')) msgColor = colors.birthday;
+        else if (/\d{1,2}[\/-]\d{1,2}([\/-]\d{2,4})?/.test(msg)) msgColor = colors.date;
+        createFlyingMessage(msg, icon, msgColor);
+        messageIndex++;
+      }
+
+      for (let i = 0; i < Math.min(messages.length, 5); i++) setTimeout(displayNextMessage, i * 1000);
+      setInterval(displayNextMessage, 3000);
+    }
+  </script>
+</body>
+</html>
